@@ -35,7 +35,7 @@ export async function createCity(name: string) {
     const result = await prisma.city.create({
       data: { name },
     });
-    revalidatePath("/dashboard/cities");
+    revalidatePath("/dashboard/enterprises");
     return { data: result, error: null };
   } catch (error) {
     console.error("[Prisma] Error creating city:", error);
@@ -49,7 +49,7 @@ export async function updateCity(id: string, name: string) {
       where: { id },
       data: { name },
     });
-    revalidatePath("/dashboard/cities");
+    revalidatePath("/dashboard/enterprises");
     return { data: result, error: null };
   } catch (error) {
     console.error("[Prisma] Error updating city:", error);
@@ -62,7 +62,7 @@ export async function deleteCity(id: string) {
     await prisma.city.delete({
       where: { id },
     });
-    revalidatePath("/dashboard/cities");
+    revalidatePath("/dashboard/enterprises");
     return { error: null };
   } catch (error) {
     console.error("[Prisma] Error deleting city:", error);

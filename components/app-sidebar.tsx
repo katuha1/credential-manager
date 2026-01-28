@@ -3,9 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import {
   Building2,
-  MapPin,
   Network,
-  Server,
   LogOut,
   LayoutDashboard,
 } from "lucide-react";
@@ -34,11 +32,6 @@ const menuItems = [
     title: "Предприятия",
     url: "/dashboard/enterprises",
     icon: Building2,
-  },
-  {
-    title: "Устройства",
-    url: "/dashboard/devices",
-    icon: Server,
   },
   {
     title: "Сеть",

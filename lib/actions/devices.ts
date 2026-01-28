@@ -40,6 +40,48 @@ export async function getDevices() {
   }
 }
 
+export async function getDevicesByEnterprise(enterpriseId: string) {
+  try {
+    const result = await prisma.device.findMany({
+      where: {
+        enterpriseId,
+      },
+      include: {
+        enterprise: {
+          include: {
+            city: true,
+          },
+        },
+        deviceType: true,
+      },
+      orderBy: {
+        name: "asc",
+      },
+    });
+
+    return { data: result, error: null };
+  } catch (error) {
+    console.error("[Prisma] Error fetching devices by enterprise:", error);
+    return { data: null, error: "Failed to fetch devices" };
+  }
+}
+
+export async function getEnterpriseById(enterpriseId: string) {
+  try {
+    const result = await prisma.enterprise.findUnique({
+      where: { id: enterpriseId },
+      include: {
+        city: true,
+      },
+    });
+
+    return { data: result, error: null };
+  } catch (error) {
+    console.error("[Prisma] Error fetching enterprise:", error);
+    return { data: null, error: "Failed to fetch enterprise" };
+  }
+}
+
 export async function createDevice(data: DeviceInput) {
   try {
     const result = await prisma.device.create({
@@ -61,7 +103,7 @@ export async function createDevice(data: DeviceInput) {
         deviceType: true,
       },
     });
-    revalidatePath("/dashboard/devices");
+    revalidatePath("/dashboard/enterprises");
     revalidatePath("/dashboard/workspace");
     return { data: result, error: null };
   } catch (error) {
@@ -99,7 +141,7 @@ export async function updateDevice(id: string, data: Partial<DeviceInput>) {
       },
     });
 
-    revalidatePath("/dashboard/devices");
+    revalidatePath("/dashboard/enterprises");
     revalidatePath("/dashboard/workspace");
     return { data: result, error: null };
   } catch (error) {
@@ -136,7 +178,7 @@ export async function deleteDevice(id: string) {
     await prisma.device.delete({
       where: { id },
     });
-    revalidatePath("/dashboard/devices");
+    revalidatePath("/dashboard/enterprises");
     revalidatePath("/dashboard/workspace");
     return { error: null };
   } catch (error) {

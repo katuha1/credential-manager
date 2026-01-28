@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import {
   Plus,
   Pencil,
@@ -9,6 +11,8 @@ import {
   EyeOff,
   Copy,
   ArrowUpDown,
+  ArrowLeft,
+  Building2,
 } from "lucide-react";
 import {
   ColumnDef,
@@ -59,13 +63,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  getDevices,
+  getDevicesByEnterprise,
+  getEnterpriseById,
   createDevice,
   updateDevice,
   deleteDevice,
   type DeviceInput,
 } from "@/lib/actions/devices";
-import { getEnterprises } from "@/lib/actions/enterprises";
 import { getDeviceTypes } from "@/lib/actions/device-types";
 
 interface City {
@@ -74,8 +78,9 @@ interface City {
 }
 
 interface Enterprise {
-  id: string | null;
-  name: string | null;
+  id: string;
+  name: string;
+  cityId: string;
   city: City | null;
 }
 
@@ -100,18 +105,19 @@ interface Device {
   enterprise: Enterprise | null;
 }
 
-export default function DevicesPage() {
+export default function EnterpriseDevicesPage() {
+  const params = useParams();
+  const enterpriseId = params.enterpriseId as string;
+
+  const [enterprise, setEnterprise] = useState<Enterprise | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [deviceTypes, setDeviceTypes] = useState<DeviceType[]>([]);
-  const [enterprises, setEnterprises] = useState<Enterprise[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [deletingDevice, setDeletingDevice] = useState<Device | null>(null);
-  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>(
-    {},
-  );
+  const [showPasswords, setShowPasswords] = useState<Record<string, boolean>>({});
   const [sorting, setSorting] = useState<SortingState>([]);
   const [formData, setFormData] = useState<DeviceInput>({
     name: "",
@@ -128,26 +134,26 @@ export default function DevicesPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [enterpriseId]);
 
   async function fetchData() {
     setLoading(true);
-    const [devicesRes, enterprisesRes, typesRes] = await Promise.all([
-      getDevices(),
-      getEnterprises(),
+    const [enterpriseRes, devicesRes, typesRes] = await Promise.all([
+      getEnterpriseById(enterpriseId),
+      getDevicesByEnterprise(enterpriseId),
       getDeviceTypes(),
     ]);
+
+    if (enterpriseRes.error) {
+      console.error("[v0] Error fetching enterprise:", enterpriseRes.error);
+    } else {
+      setEnterprise(enterpriseRes.data as Enterprise | null);
+    }
 
     if (devicesRes.error) {
       console.error("[v0] Error fetching devices:", devicesRes.error);
     } else {
       setDevices((devicesRes.data || []) as Device[]);
-    }
-
-    if (enterprisesRes.error) {
-      console.error("[v0] Error fetching enterprises:", enterprisesRes.error);
-    } else {
-      setEnterprises((enterprisesRes.data || []) as Enterprise[]);
     }
 
     if (typesRes.error) {
@@ -174,7 +180,7 @@ export default function DevicesPage() {
     setEditingDevice(null);
     setFormData({
       name: "",
-      enterpriseId: "",
+      enterpriseId: enterpriseId,
       ipAddress: "",
       deviceTypeId: deviceTypes.length > 0 ? deviceTypes[0].id : "",
       login: "",
@@ -208,7 +214,7 @@ export default function DevicesPage() {
   }
 
   async function handleSave() {
-    if (!formData.name || !formData.enterpriseId || !formData.ipAddress) return;
+    if (!formData.name || !formData.ipAddress) return;
 
     setSaving(true);
     try {
@@ -270,21 +276,6 @@ export default function DevicesPage() {
             {getDeviceTypeLabel(row.getValue("deviceTypeId") as string)}
           </Badge>
         ),
-      },
-      {
-        accessorKey: "enterprise",
-        header: "Предприятие",
-        cell: ({ row }) => {
-          const device = row.original;
-          return (
-            <div className="flex flex-col">
-              <span>{device.enterprise?.name}</span>
-              <span className="text-xs text-muted-foreground">
-                {device.enterprise?.city?.name}
-              </span>
-            </div>
-          );
-        },
       },
       {
         accessorKey: "ipAddress",
@@ -406,7 +397,7 @@ export default function DevicesPage() {
         ),
       },
     ],
-    [showPasswords, deviceTypes],
+    [showPasswords, deviceTypes]
   );
 
   const table = useReactTable({
@@ -435,30 +426,55 @@ export default function DevicesPage() {
     );
   }
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Устройства</h1>
-          <p className="text-muted-foreground">
-            Управление сетевыми устройствами
-          </p>
+  if (!enterprise) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard/enterprises">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Назад
+            </Link>
+          </Button>
         </div>
-        <Button onClick={handleAdd} disabled={enterprises.length === 0}>
-          <Plus className="w-4 h-4" />
-          <span className="hidden md:inline">Добавить устройство</span>
-        </Button>
-      </div>
-
-      {enterprises.length === 0 && (
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              Сначала добавьте хотя бы одно предприятие
+              Предприятие не найдено
             </p>
           </CardContent>
         </Card>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/dashboard/enterprises">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Назад
+            </Link>
+          </Button>
+          <div>
+            <div className="flex items-center gap-2">
+              <Building2 className="w-5 h-5 text-muted-foreground" />
+              <h1 className="text-2xl font-bold tracking-tight">
+                {enterprise.name}
+              </h1>
+            </div>
+            <p className="text-muted-foreground">
+              {enterprise.city?.name} - Устройства
+            </p>
+          </div>
+        </div>
+        <Button onClick={handleAdd}>
+          <Plus className="w-4 h-4" />
+          <span className="hidden md:inline ml-2">Добавить устройство</span>
+        </Button>
+      </div>
 
       <Card>
         <CardHeader>
@@ -482,7 +498,7 @@ export default function DevicesPage() {
                               ? null
                               : flexRender(
                                   header.column.columnDef.header,
-                                  header.getContext(),
+                                  header.getContext()
                                 )}
                           </TableHead>
                         ))}
@@ -496,7 +512,7 @@ export default function DevicesPage() {
                           <TableCell key={cell.id}>
                             {flexRender(
                               cell.column.columnDef.cell,
-                              cell.getContext(),
+                              cell.getContext()
                             )}
                           </TableCell>
                         ))}
@@ -599,26 +615,6 @@ export default function DevicesPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="enterprise">Предприятие</Label>
-              <Select
-                value={formData.enterpriseId}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, enterpriseId: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Выберите предприятие" />
-                </SelectTrigger>
-                <SelectContent>
-                  {enterprises.map((ent) => (
-                    <SelectItem key={ent.id ?? ""} value={ent.id ?? ""}>
-                      {ent.name} ({ent.city?.name})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="ip">IP адрес</Label>
@@ -698,12 +694,7 @@ export default function DevicesPage() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={
-                saving ||
-                !formData.name ||
-                !formData.enterpriseId ||
-                !formData.ipAddress
-              }
+              disabled={saving || !formData.name || !formData.ipAddress}
             >
               {saving ? "Сохранение..." : "Сохранить"}
             </Button>
@@ -721,9 +712,7 @@ export default function DevicesPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>
-              Удалить
-            </AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete}>Удалить</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
