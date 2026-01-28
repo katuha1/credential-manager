@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model City {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enterprises Enterprise[]
+
+  @@map("cities")
+}
+
+model Enterprise {
+  id        String   @id @default(cuid())
+  name      String
+  cityId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city    City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  devices Device[]
+
+  @@unique([name, cityId])
+  @@map("enterprises")
+}
+
+model DeviceType {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  icon      String?
+  color     String?
+  bgColor   String?
+  textColor String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  devices Device[]
+
+  @@map("device_types")
+}
+
+model Device {
+  id              String   @id @default(cuid())
+  name            String
+  enterpriseId    String
+  ipAddress       String
+  deviceTypeId    String
+  login           String?
+  password        String?
+  connectedPort   String?
+  macAddress      String?
+  additionalInfo  String?
+  positionX       Int      @default(100)
+  positionY       Int      @default(100)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  enterprise          Enterprise           @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  deviceType          DeviceType           @relation(fields: [deviceTypeId], references: [id], onDelete: Restrict)
+  sourceConnections   NetworkConnection[] @relation("source")
+  targetConnections  NetworkConnection[] @relation("target")
+
+  @@map("devices")
+}
+
+model NetworkConnection {
+  id               String   @id @default(cuid())
+  enterpriseId     String
+  sourceDeviceId   String
+  targetDeviceId   String
+  label            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  sourceDevice Device @relation("source", fields: [sourceDeviceId], references: [id], onDelete: Cascade)
+  targetDevice Device @relation("target", fields: [targetDeviceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceDeviceId, targetDeviceId])
+  @@map("network_connections")
+}
+
+model User {
+  id       String @id @default(cuid())
+  name     String
+  pinCode  String
+  email    String @unique
+
+  @@map("users")
+}
